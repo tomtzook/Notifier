@@ -29,6 +29,7 @@ build/
 # IDEA
 .idea/
 bin/
+*.iml
 
 # Analytics
 codemr/
