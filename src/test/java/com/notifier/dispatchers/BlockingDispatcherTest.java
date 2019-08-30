@@ -74,11 +74,14 @@ public class BlockingDispatcherTest {
 
         Collection<Boolean> conditions = new ArrayList<>();
         CountDownLatch callLatch = new CountDownLatch(1);
-        BiConsumer<Listener, Event> caller = delayedCaller(conditions::add, ()-> callLatch.getCount() > 0);
+        CountDownLatch doneLatch = new CountDownLatch(LISTENERS.length);
+        BiConsumer<Listener, Event> caller = delayedCaller(conditions::add, ()-> callLatch.getCount() > 0, doneLatch::countDown);
 
         EventDispatcher eventDispatcher = new BlockingDispatcher(sExecutorService, 500, TimeUnit.MILLISECONDS);
         eventDispatcher.dispatch(Arrays.asList(LISTENERS), predicate, EVENT, caller);
         callLatch.countDown();
+
+        doneLatch.await(1, TimeUnit.MINUTES);
 
         assertThat(conditions, everyItem(equalTo(true)));
     }
