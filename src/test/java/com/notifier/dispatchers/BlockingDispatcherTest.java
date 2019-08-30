@@ -10,6 +10,7 @@ import org.mockito.stubbing.Answer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -50,7 +51,7 @@ public class BlockingDispatcherTest {
 
         Predicate<Listener> predicate = truePredicate();
 
-        Collection<Boolean> conditions = new ArrayList<>();
+        Collection<Boolean> conditions = new ConcurrentLinkedQueue<>();
         CountDownLatch callLatch = new CountDownLatch(1);
         BiConsumer<Listener, Event> caller = delayedCaller(conditions::add, ()-> callLatch.getCount() > 0);
 
@@ -72,7 +73,7 @@ public class BlockingDispatcherTest {
 
         Predicate<Listener> predicate = truePredicate();
 
-        Collection<Boolean> conditions = new ArrayList<>();
+        Collection<Boolean> conditions = new ConcurrentLinkedQueue<>();
         CountDownLatch callLatch = new CountDownLatch(1);
         CountDownLatch doneLatch = new CountDownLatch(LISTENERS.length);
         BiConsumer<Listener, Event> caller = delayedCaller(conditions::add, ()-> callLatch.getCount() > 0, doneLatch::countDown);
@@ -97,7 +98,7 @@ public class BlockingDispatcherTest {
 
         Predicate<Listener> predicate = truePredicate();
 
-        Collection<Boolean> conditions = new ArrayList<>();
+        Collection<Boolean> conditions = new ConcurrentLinkedQueue<>();
         CountDownLatch callLatch = new CountDownLatch(1);
         CountDownLatch doneLatch = new CountDownLatch(LISTENERS.length);
         BiConsumer<Listener, Event> caller = delayedCaller(conditions::add, ()-> callLatch.getCount() == 0, doneLatch::countDown);
@@ -106,7 +107,7 @@ public class BlockingDispatcherTest {
         eventDispatcher.dispatch(Arrays.asList(LISTENERS), predicate, EVENT, caller);
         callLatch.countDown();
 
-        doneLatch.await(1, TimeUnit.MINUTES);
+        doneLatch.await(2, TimeUnit.MINUTES);
 
         assertThat(conditions, everyItem(equalTo(true)));
     }
