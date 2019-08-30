@@ -42,67 +42,16 @@ task javadocJar(type: Jar, dependsOn: javadoc) {
     from javadoc.destinationDir
 }
 
-def isReleaseBuild() {
-    return version.contains("SNAPSHOT") == false
+task allJar(type: Jar, dependsOn: jar) {
+    dependsOn sourcesJar
+    dependsOn javadocJar
+
+    archiveName = 'notifier.jar'
+    destinationDir = rootProject.buildDir
+
+    from files(project.sourceSets.main.output)
+    from files(project.sourceSets.main.allSource)
+    from files(project.javadoc.destinationDir)
 }
 
-publishing {
-    publications {
-        mavenCastle(MavenPublication) {
-            artifactId = ARTIFACT_ID
-
-            from components.java
-
-            artifact javadocJar
-            artifact sourcesJar
-
-            pom {
-                name = 'Notifier'
-                description = "A generic event dispatching library"
-                url = 'https://github.com/tomtzook/Notifier'
-
-                licenses {
-                    license {
-                        name = 'Apache License, Version 2.0'
-                        url = 'http://www.apache.org/licenses/LICENSE-2.0'
-                    }
-                }
-
-                developers {
-                    developer {
-                        id = 'tomtzook'
-                        name = 'Tom Tzook'
-                        email = 'tomtzook@gmail.com'
-                    }
-                }
-
-                scm {
-                    connection = 'scm:git:git://github.com/tomtzook/Notifier.git'
-                    developerConnection = 'scm:git:ssh://github.com/tomtzook/Notifier.git'
-                    url = 'https://github.com/tomtzook/Notifier'
-                }
-            }
-        }
-    }
-
-    repositories {
-        maven {
-            if (isReleaseBuild()) {
-                name = 'NexusStaging'
-                url = NEXUS_RELEASE_REPOSITORY_URL
-            } else {
-                name = 'NexusSnapshot'
-                url = NEXUS_SNAPSHOT_REPOSITORY_URL
-            }
-
-            credentials {
-                username ''
-                password ''
-            }
-        }
-    }
-}
-
-signing {
-    sign publishing.publications.mavenCastle
-}
+apply from: project.file('deploy.gradle')

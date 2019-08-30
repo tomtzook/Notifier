@@ -1,0 +1,95 @@
+
+
+ext.isReleaseBuild = {
+    return version.contains("SNAPSHOT") == false
+}
+
+ext.getNexusUsername = {
+    return rootProject.hasProperty('NEXUS_USERNAME') ? NEXUS_USERNAME : System.getenv('NEXUS_USERNAME')
+}
+
+ext.getNexusPassword = {
+    return rootProject.hasProperty('NEXUS_PASSWORD') ? NEXUS_PASSWORD : System.getenv('NEXUS_PASSWORD')
+}
+
+ext.setPropertyGlobal = { key ->
+    if (rootProject.hasProperty(key)) {
+        project.setProperty(key, rootProject.getProperty(key))
+    }
+}
+
+ext.setPropertyGlobalFile = { key ->
+    if (rootProject.hasProperty(key)) {
+        def file = rootProject.file(rootProject.getProperty(key)).absolutePath
+        project.setProperty(key, file)
+    }
+}
+
+setPropertyGlobal('signing.keyId')
+setPropertyGlobal('signing.password')
+setPropertyGlobalFile('signing.secretKeyRingFile')
+
+def isReleaseBuild() {
+    return version.contains("SNAPSHOT") == false
+}
+
+publishing {
+    publications {
+        mavenCastle(MavenPublication) {
+            artifactId = ARTIFACT_ID
+
+            from components.java
+
+            artifact javadocJar
+            artifact sourcesJar
+
+            pom {
+                name = 'Notifier'
+                description = "A generic event dispatching library"
+                url = 'https://github.com/tomtzook/Notifier'
+
+                licenses {
+                    license {
+                        name = 'Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = 'tomtzook'
+                        name = 'Tom Tzook'
+                        email = 'tomtzook@gmail.com'
+                    }
+                }
+
+                scm {
+                    connection = 'scm:git:git://github.com/tomtzook/Notifier.git'
+                    developerConnection = 'scm:git:ssh://github.com/tomtzook/Notifier.git'
+                    url = 'https://github.com/tomtzook/Notifier'
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            if (isReleaseBuild()) {
+                name = 'NexusStaging'
+                url = NEXUS_RELEASE_REPOSITORY_URL
+            } else {
+                name = 'NexusSnapshot'
+                url = NEXUS_SNAPSHOT_REPOSITORY_URL
+            }
+
+            credentials {
+                username getNexusUsername()
+                password getNexusPassword()
+            }
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.mavenCastle
+}
