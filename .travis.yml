@@ -33,7 +33,7 @@ deploy:
   on:
     condition: "$TRAVIS_TAG =~ ^v[0-9]+\\.[0-9]+\\.[0-9]+(-.*)?"
     branch: master
-  tags: true
+    tags: true
 - provider: releases
   skip_cleanup: true
   draft: true
