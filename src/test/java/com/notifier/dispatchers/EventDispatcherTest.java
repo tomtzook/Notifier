@@ -2,6 +2,8 @@ package com.notifier.dispatchers;
 
 import com.notifier.Event;
 import com.notifier.Listener;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -11,7 +13,12 @@ import org.mockito.hamcrest.MockitoHamcrest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static org.hamcrest.Matchers.*;
@@ -26,16 +33,42 @@ public class EventDispatcherTest {
     public static class ImplTest {
 
         @Parameterized.Parameter(0)
-        public EventDispatcher mEventDispatcher;
+        public DispatcherContainer mDispatcherContainer;
         @Parameterized.Parameter(1)
         public Class<EventDispatcher> mDispatcherType;
+        @Parameterized.Parameter(2)
+        public String mTestName;
 
-        @Parameterized.Parameters(name = "{1}")
+        private EventDispatcher mEventDispatcher;
+
+        @Parameterized.Parameters(name = "{1}-{2}")
         public static Collection<Object[]> data() {
             return Arrays.asList(new Object[][]{
-                    {new SyncrounousDispatcher(), SyncrounousDispatcher.class},
-                    {new ExecutorBasedDispatcher(new ImmediateExecutor()), ExecutorBasedDispatcher.class},
+                    {new DispatcherContainer(new SyncrounousDispatcher()),
+                            SyncrounousDispatcher.class, "base"},
+                    {new DispatcherContainer(new ExecutorBasedDispatcher(new ImmediateExecutor())),
+                            ExecutorBasedDispatcher.class, "immediate"},
+                    {DispatcherContainer.withExecutor(ExecutorBasedDispatcher::new, Executors.newCachedThreadPool()),
+                            ExecutorBasedDispatcher.class, "executorService"},
+                    {DispatcherContainer.withExecutor((executor)->{
+                        return new BlockingDispatcher(executor, -1, TimeUnit.MICROSECONDS, (t)->{});
+                    }, Executors.newCachedThreadPool()),
+                            ExecutorBasedDispatcher.class, "executorService-noTimeout"},
             });
+        }
+
+        @Before
+        public void setUp() throws Exception {
+            mEventDispatcher = mDispatcherContainer.mEventDispatcher;
+        }
+
+        @After
+        public void tearDown() throws Exception {
+            for (AutoCloseable closeable : mDispatcherContainer.mResources) {
+                try {
+                    closeable.close();
+                } catch (Throwable t) {}
+            }
         }
 
         @Test
@@ -106,6 +139,24 @@ public class EventDispatcherTest {
 
             return predicate;
 
+        }
+    }
+
+    private static class DispatcherContainer {
+        EventDispatcher mEventDispatcher;
+        Collection<AutoCloseable> mResources;
+
+        DispatcherContainer(EventDispatcher eventDispatcher, Collection<AutoCloseable> closeables) {
+            mEventDispatcher = eventDispatcher;
+            mResources = closeables;
+        }
+
+        DispatcherContainer(EventDispatcher eventDispatcher) {
+            this(eventDispatcher, new ArrayList<>());
+        }
+
+        static DispatcherContainer withExecutor(Function<ExecutorService, EventDispatcher> eventDispatcher, ExecutorService executor) {
+            return new DispatcherContainer(eventDispatcher.apply(executor), Collections.singleton(executor::shutdownNow));
         }
     }
 }
