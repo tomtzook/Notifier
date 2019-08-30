@@ -2,23 +2,23 @@ package com.notifier.dispatchers;
 
 import com.notifier.Event;
 import com.notifier.Listener;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.mockito.ArgumentCaptor;
 import org.mockito.hamcrest.MockitoHamcrest;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static org.hamcrest.Matchers.*;
@@ -32,43 +32,32 @@ public class EventDispatcherTest {
     @RunWith(Parameterized.class)
     public static class ImplTest {
 
+        private static ExecutorService sExecutorService = Executors.newCachedThreadPool();
+
         @Parameterized.Parameter(0)
-        public DispatcherContainer mDispatcherContainer;
+        public EventDispatcher mEventDispatcher;
         @Parameterized.Parameter(1)
         public Class<EventDispatcher> mDispatcherType;
         @Parameterized.Parameter(2)
         public String mTestName;
 
-        private EventDispatcher mEventDispatcher;
-
         @Parameterized.Parameters(name = "{1}-{2}")
         public static Collection<Object[]> data() {
             return Arrays.asList(new Object[][]{
-                    {new DispatcherContainer(new SyncrounousDispatcher()),
+                    {new SyncrounousDispatcher(),
                             SyncrounousDispatcher.class, "base"},
-                    {new DispatcherContainer(new ExecutorBasedDispatcher(new ImmediateExecutor())),
+                    {new ExecutorBasedDispatcher(new ImmediateExecutor()),
                             ExecutorBasedDispatcher.class, "immediate"},
-                    {DispatcherContainer.withExecutor(ExecutorBasedDispatcher::new, Executors.newCachedThreadPool()),
+                    {new ExecutorBasedDispatcher(sExecutorService),
                             ExecutorBasedDispatcher.class, "executorService"},
-                    {DispatcherContainer.withExecutor((executor)->{
-                        return new BlockingDispatcher(executor, -1, TimeUnit.MICROSECONDS, (t)->{});
-                    }, Executors.newCachedThreadPool()),
+                    {new BlockingDispatcher(sExecutorService, -1, TimeUnit.MICROSECONDS, (t)->{}),
                             ExecutorBasedDispatcher.class, "executorService-noTimeout"},
             });
         }
 
-        @Before
-        public void setUp() throws Exception {
-            mEventDispatcher = mDispatcherContainer.mEventDispatcher;
-        }
-
-        @After
-        public void tearDown() throws Exception {
-            for (AutoCloseable closeable : mDispatcherContainer.mResources) {
-                try {
-                    closeable.close();
-                } catch (Throwable t) {}
-            }
+        @AfterClass
+        public static void tearDown() throws Exception {
+            sExecutorService.shutdownNow();
         }
 
         @Test
@@ -81,10 +70,14 @@ public class EventDispatcherTest {
             final Event EVENT = mock(Event.class);
 
             Predicate<Listener> predicate = truePredicate();
-            BiConsumer<Listener, Event> caller = mock(BiConsumer.class);
+
+            CountDownLatch callLatch = new CountDownLatch(LISTENERS.length);
+            BiConsumer<Listener, Event> caller = mockCallerMarkingLatch(callLatch);
 
             mEventDispatcher.dispatch(Arrays.asList(LISTENERS),
                     predicate, EVENT, caller);
+
+            callLatch.await(1, TimeUnit.MINUTES);
 
             ArgumentCaptor<Listener> listenerCaptor = ArgumentCaptor.forClass(Listener.class);
             verify(caller, atLeastOnce()).accept(listenerCaptor.capture(), eq(EVENT));
@@ -109,13 +102,17 @@ public class EventDispatcherTest {
             final Event EVENT = mock(Event.class);
 
             Predicate<Listener> predicate = predicateFor(Arrays.asList(CALL));
-            BiConsumer<Listener, Event> caller = mock(BiConsumer.class);
+
+            CountDownLatch callLatch = new CountDownLatch(CALL.length);
+            BiConsumer<Listener, Event> caller = mockCallerMarkingLatch(callLatch);
 
             Collection<Listener> listeners = new ArrayList<>();
             listeners.addAll(Arrays.asList(CALL));
             listeners.addAll(Arrays.asList(DONT_CALL));
 
             mEventDispatcher.dispatch(listeners, predicate, EVENT, caller);
+
+            callLatch.await(1, TimeUnit.MINUTES);
 
             ArgumentCaptor<Listener> listenerCaptor = ArgumentCaptor.forClass(Listener.class);
             verify(caller, atLeastOnce()).accept(listenerCaptor.capture(), eq(EVENT));
@@ -138,25 +135,19 @@ public class EventDispatcherTest {
             when(predicate.test(MockitoHamcrest.argThat(is(in(listeners))))).thenReturn(true);
 
             return predicate;
-
-        }
-    }
-
-    private static class DispatcherContainer {
-        EventDispatcher mEventDispatcher;
-        Collection<AutoCloseable> mResources;
-
-        DispatcherContainer(EventDispatcher eventDispatcher, Collection<AutoCloseable> closeables) {
-            mEventDispatcher = eventDispatcher;
-            mResources = closeables;
         }
 
-        DispatcherContainer(EventDispatcher eventDispatcher) {
-            this(eventDispatcher, new ArrayList<>());
-        }
+        private BiConsumer<Listener, Event> mockCallerMarkingLatch(CountDownLatch latch) {
+            BiConsumer<Listener, Event> caller = mock(BiConsumer.class);
+            doAnswer(new Answer<Void>() {
+                @Override
+                public Void answer(InvocationOnMock invocation) throws Throwable {
+                    latch.countDown();
+                    return null;
+                }
+            }).when(caller).accept(any(Listener.class), any(Event.class));
 
-        static DispatcherContainer withExecutor(Function<ExecutorService, EventDispatcher> eventDispatcher, ExecutorService executor) {
-            return new DispatcherContainer(eventDispatcher.apply(executor), Collections.singleton(executor::shutdownNow));
+            return caller;
         }
     }
 }
