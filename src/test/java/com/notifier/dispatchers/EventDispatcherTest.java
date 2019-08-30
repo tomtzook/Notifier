@@ -50,7 +50,7 @@ public class EventDispatcherTest {
                             ExecutorBasedDispatcher.class, "immediate"},
                     {new ExecutorBasedDispatcher(sExecutorService),
                             ExecutorBasedDispatcher.class, "executorService"},
-                    {new BlockingDispatcher(sExecutorService, -1, TimeUnit.MICROSECONDS, (t)->{}),
+                    {new BlockingDispatcher(sExecutorService, -1, TimeUnit.MICROSECONDS),
                             ExecutorBasedDispatcher.class, "executorService-noTimeout"},
             });
         }

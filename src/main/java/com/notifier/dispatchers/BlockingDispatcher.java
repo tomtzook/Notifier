@@ -11,7 +11,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 public class BlockingDispatcher implements EventDispatcher {
@@ -19,13 +18,11 @@ public class BlockingDispatcher implements EventDispatcher {
     private final ExecutorService mExecutorService;
     private final long mMaxWaitTime;
     private final TimeUnit mWaitTimeUnit;
-    private final Consumer<Throwable> mErrorHandler;
 
-    public BlockingDispatcher(ExecutorService executorService, long maxWaitTime, TimeUnit waitTimeUnit, Consumer<Throwable> errorHandler) {
+    public BlockingDispatcher(ExecutorService executorService, long maxWaitTime, TimeUnit waitTimeUnit) {
         mExecutorService = executorService;
         mMaxWaitTime = maxWaitTime;
         mWaitTimeUnit = waitTimeUnit;
-        mErrorHandler = errorHandler;
     }
 
     @Override
@@ -47,7 +44,7 @@ public class BlockingDispatcher implements EventDispatcher {
                     future.get(mMaxWaitTime, mWaitTimeUnit);
                 }
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                mErrorHandler.accept(e);
+                // ignore
             }
         }
     }
