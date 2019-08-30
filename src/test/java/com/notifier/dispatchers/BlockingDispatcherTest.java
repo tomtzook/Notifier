@@ -102,7 +102,7 @@ public class BlockingDispatcherTest {
         CountDownLatch doneLatch = new CountDownLatch(LISTENERS.length);
         BiConsumer<Listener, Event> caller = delayedCaller(conditions::add, ()-> callLatch.getCount() == 0, doneLatch::countDown);
 
-        EventDispatcher eventDispatcher = new BlockingDispatcher(sExecutorService, 50, TimeUnit.MILLISECONDS);
+        EventDispatcher eventDispatcher = new BlockingDispatcher(sExecutorService, 10, TimeUnit.MILLISECONDS);
         eventDispatcher.dispatch(Arrays.asList(LISTENERS), predicate, EVENT, caller);
         callLatch.countDown();
 
