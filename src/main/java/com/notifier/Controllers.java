@@ -76,6 +76,10 @@ public class Controllers {
      *     A call to {@link EventController#fire(Event, Class, Class, BiConsumer) fire} will be blocking
      *     until all the listeners have being called, or a timeout has occurred.
      * </p>
+     * <p>
+     *     If a timeout has occurred, listeners will still be called, however, the call is simply no
+     *     longer blocking.
+     * </p>
      *
      * @param executorService executor service
      * @param maxWaitTime max wait timeout
