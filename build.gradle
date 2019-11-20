@@ -4,10 +4,12 @@ plugins {
     id 'signing'
 }
 
+apply from: rootProject.file('extras.gradle')
+
 group GROUP
 version VERSION
 
-sourceCompatibility = 1.8
+sourceCompatibility = JavaVersion.VERSION_1_8
 
 repositories {
     mavenCentral()
@@ -28,16 +30,20 @@ test {
     }
 }
 
+jar {
+    archiveBaseName.set(project.name)
+}
+
 task sourcesJar(type: Jar, dependsOn: classes) {
-    baseName project.name
-    classifier = 'sources'
+    archiveBaseName.set(project.name)
+    archiveClassifier.set('sources')
 
     from sourceSets.main.allSource
 }
 
 task javadocJar(type: Jar, dependsOn: javadoc) {
-    baseName project.name
-    classifier = 'javadoc'
+    archiveBaseName.set(project.name)
+    archiveClassifier.set('javadoc')
 
     from javadoc.destinationDir
 }
@@ -46,12 +52,12 @@ task allJar(type: Jar, dependsOn: jar) {
     dependsOn sourcesJar
     dependsOn javadocJar
 
-    archiveName = 'notifier.jar'
-    destinationDir = rootProject.buildDir
+    archiveFileName.set('notifier.jar')
+    destinationDirectory.set(rootProject.buildDir)
 
-    from files(project.sourceSets.main.output)
-    from files(project.sourceSets.main.allSource)
-    from files(project.javadoc.destinationDir)
+    from sourceSets.main.output
+    from sourceSets.main.allSource
+    from javadoc.destinationDir
 }
 
 apply from: project.file('deploy.gradle')
