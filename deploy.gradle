@@ -1,6 +1,6 @@
 publishing {
     publications {
-        mavenCastle(MavenPublication) {
+        mavenNotifier(MavenPublication) {
             artifactId = ARTIFACT_ID
 
             from components.java
@@ -57,6 +57,6 @@ publishing {
 
 if (shouldSign()) {
     signing {
-        sign publishing.publications.mavenCastle
+        sign publishing.publications.mavenNotifier
     }
 }
