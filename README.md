@@ -95,6 +95,6 @@ Releases are deployed to maven cental, so using the library is quite easy.
 For example, adding the __Notifier__ as a dependency to a _Gradle_-based project:
 ```Groovy
 dependencies {
-  compile group: 'com.github.tomtzook', name: 'notifier', version $version
+  implementation group: 'com.github.tomtzook', name: 'notifier', version $version
 }
 ``` 
