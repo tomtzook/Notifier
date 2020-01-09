@@ -2,8 +2,8 @@ package com.notifier.dispatchers;
 
 import com.notifier.Event;
 import com.notifier.Listener;
-import org.junit.AfterClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterAll;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -19,17 +19,19 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.everyItem;
-import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class BlockingDispatcherTest {
 
     private static ExecutorService sExecutorService = Executors.newCachedThreadPool();
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() {
         sExecutorService.shutdownNow();
     }
