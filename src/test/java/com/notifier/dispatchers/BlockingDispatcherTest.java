@@ -2,8 +2,8 @@ package com.notifier.dispatchers;
 
 import com.notifier.Event;
 import com.notifier.Listener;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
