@@ -27,6 +27,11 @@ public class DispatchingController implements EventController {
     }
 
     @Override
+    public void unregisterListener(Listener listener) {
+        mListeners.remove(listener);
+    }
+
+    @Override
     public <E extends Event, L extends Listener> void fire(E event, Class<E> eventType, Class<L> listenerType,
                                                            BiConsumer<L, E> listenerCall) {
         mEventDispatcher.dispatch(

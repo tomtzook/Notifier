@@ -1,38 +1,3 @@
-
-
-ext.isReleaseBuild = {
-    return version.contains("SNAPSHOT") == false
-}
-
-ext.getNexusUsername = {
-    return rootProject.hasProperty('NEXUS_USERNAME') ? NEXUS_USERNAME : System.getenv('NEXUS_USERNAME')
-}
-
-ext.getNexusPassword = {
-    return rootProject.hasProperty('NEXUS_PASSWORD') ? NEXUS_PASSWORD : System.getenv('NEXUS_PASSWORD')
-}
-
-ext.setPropertyGlobal = { key ->
-    if (rootProject.hasProperty(key)) {
-        project.setProperty(key, rootProject.getProperty(key))
-    }
-}
-
-ext.setPropertyGlobalFile = { key ->
-    if (rootProject.hasProperty(key)) {
-        def file = rootProject.file(rootProject.getProperty(key)).absolutePath
-        project.setProperty(key, file)
-    }
-}
-
-setPropertyGlobal('signing.keyId')
-setPropertyGlobal('signing.password')
-setPropertyGlobalFile('signing.secretKeyRingFile')
-
-def isReleaseBuild() {
-    return version.contains("SNAPSHOT") == false
-}
-
 publishing {
     publications {
         mavenCastle(MavenPublication) {
@@ -90,6 +55,8 @@ publishing {
     }
 }
 
-signing {
-    sign publishing.publications.mavenCastle
+if (shouldSign()) {
+    signing {
+        sign publishing.publications.mavenCastle
+    }
 }

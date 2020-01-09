@@ -1,7 +1,7 @@
 package com.notifier;
 
 import com.notifier.dispatchers.EventDispatcher;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.ArrayList;
@@ -10,9 +10,10 @@ import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -29,6 +30,20 @@ public class DispatchingControllerTest {
         dispatchingController.registerListener(LISTENER);
 
         assertThat(listeners, contains(LISTENER));
+    }
+
+    @Test
+    public void unregister_forRegisterListener_removesListener() throws Exception {
+        final Listener LISTENER = mock(Listener.class);
+
+        Collection<Listener> listeners = new ArrayList<>();
+        listeners.add(LISTENER);
+        EventDispatcher eventDispatcher = mock(EventDispatcher.class);
+
+        DispatchingController dispatchingController = new DispatchingController(eventDispatcher, listeners);
+        dispatchingController.unregisterListener(LISTENER);
+
+        assertThat(listeners, not(contains(LISTENER)));
     }
 
     @Test

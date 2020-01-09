@@ -1,22 +1,27 @@
 plugins {
-    id 'java'
+    id 'java-library'
     id 'maven-publish'
     id 'signing'
 }
 
+apply from: rootProject.file('extras.gradle')
+
 group GROUP
 version VERSION
 
-sourceCompatibility = 1.8
+sourceCompatibility = JavaVersion.VERSION_1_8
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    testCompile group: 'junit', name: 'junit', version: '4.12'
-    testCompile group: 'org.mockito', name: 'mockito-core', version: '2.23.4'
-    testCompile group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
+    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.4.2'
+    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '5.4.2'
+    testImplementation group: 'org.junit.platform', name: 'junit-platform-runner', version: '1.2.0'
+    testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.23.4'
+    testImplementation group: 'org.mockito', name: 'mockito-junit-jupiter', version: '2.23.0'
+    testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
 }
 
 
@@ -28,16 +33,20 @@ test {
     }
 }
 
+jar {
+    archiveBaseName.set(project.name)
+}
+
 task sourcesJar(type: Jar, dependsOn: classes) {
-    baseName project.name
-    classifier = 'sources'
+    archiveBaseName.set(project.name)
+    archiveClassifier.set('sources')
 
     from sourceSets.main.allSource
 }
 
 task javadocJar(type: Jar, dependsOn: javadoc) {
-    baseName project.name
-    classifier = 'javadoc'
+    archiveBaseName.set(project.name)
+    archiveClassifier.set('javadoc')
 
     from javadoc.destinationDir
 }
@@ -46,12 +55,12 @@ task allJar(type: Jar, dependsOn: jar) {
     dependsOn sourcesJar
     dependsOn javadocJar
 
-    archiveName = 'notifier.jar'
-    destinationDir = rootProject.buildDir
+    archiveFileName.set('notifier.jar')
+    destinationDirectory.set(rootProject.buildDir)
 
-    from files(project.sourceSets.main.output)
-    from files(project.sourceSets.main.allSource)
-    from files(project.javadoc.destinationDir)
+    from sourceSets.main.output
+    from sourceSets.main.allSource
+    from javadoc.destinationDir
 }
 
 apply from: project.file('deploy.gradle')
