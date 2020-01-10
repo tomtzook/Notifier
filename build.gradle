@@ -1,3 +1,16 @@
+buildscript {
+    repositories {
+        jcenter()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+
+    dependencies {
+        classpath "me.champeau.gradle:jmh-gradle-plugin:0.5.0"
+    }
+}
+
 plugins {
     id 'java-library'
     id 'maven-publish'
@@ -65,3 +78,4 @@ task allJar(type: Jar, dependsOn: jar) {
 }
 
 apply from: project.file('deploy.gradle')
+apply from: project.file('benchmark.gradle')
