@@ -7,6 +7,7 @@ import org.mockito.ArgumentCaptor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
@@ -15,7 +16,9 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -86,5 +89,67 @@ public class DispatchingControllerTest {
         Collection<Listener> passedListeners = listenerCaptor.getValue();
         assertThat(passedListeners, hasSize(LISTENERS.length));
         assertThat(passedListeners, contains(LISTENERS));
+    }
+
+    @Test
+    public void fire_forListener_callsListener() throws Exception {
+        FakeListener listener = mock(FakeListener.class);
+        Event event = mock(Event.class);
+
+        Collection<Listener> listeners = new ArrayList<>(Collections.singleton(listener));
+        EventDispatcher eventDispatcher = new FakeDispatching();
+
+        DispatchingController dispatchingController = new DispatchingController(eventDispatcher, listeners);
+        dispatchingController.fire(event, Event.class, FakeListener.class, FakeListener::call);
+
+        verify(listener, times(1)).call(eq(event));
+    }
+
+    @Test
+    public void fire_forPredicatedListenerWithCorrectEvent_callsListener() throws Exception {
+        FakeListener listener = mock(FakeListener.class);
+        Event event = mock(Event.class);
+        Predicate<Event> predicate = (e)->true;
+
+        Collection<Listener> listeners = new ArrayList<>(Collections.singleton(
+                new DispatchingController.PredicatedListener(listener, predicate)));
+        EventDispatcher eventDispatcher = new FakeDispatching();
+
+        DispatchingController dispatchingController = new DispatchingController(eventDispatcher, listeners);
+        dispatchingController.fire(event, Event.class, FakeListener.class, FakeListener::call);
+
+        verify(listener, times(1)).call(eq(event));
+    }
+
+    @Test
+    public void fire_forPredicatedListenerWithWrongEvent_callsListener() throws Exception {
+        FakeListener listener = mock(FakeListener.class);
+        Event event = mock(Event.class);
+        Predicate<Event> predicate = (e)->false;
+
+        Collection<Listener> listeners = new ArrayList<>(Collections.singleton(
+                new DispatchingController.PredicatedListener(listener, predicate)));
+        EventDispatcher eventDispatcher = new FakeDispatching();
+
+        DispatchingController dispatchingController = new DispatchingController(eventDispatcher, listeners);
+        dispatchingController.fire(event, Event.class, FakeListener.class, FakeListener::call);
+
+        verify(listener, never()).call(eq(event));
+    }
+
+    private interface FakeListener extends Listener {
+        void call(Event event);
+    }
+
+    private static class FakeDispatching implements EventDispatcher {
+
+        @Override
+        public void dispatch(Collection<Listener> listeners, Predicate<Listener> listenerFilter, Event event, BiConsumer<Listener, Event> listenerCall) {
+            for (Listener listener : listeners) {
+                if (listenerFilter.test(listener)) {
+                    listenerCall.accept(listener, event);
+                }
+            }
+        }
     }
 }

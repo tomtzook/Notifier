@@ -42,7 +42,7 @@ public class DispatchingController implements EventController {
                                                            BiConsumer<L, E> listenerCall) {
         mEventDispatcher.dispatch(
                 Collections.unmodifiableCollection(mListeners),
-                listenerType::isInstance,
+                (l)->listenerType.isInstance(l) || l instanceof PredicatedListener,
                 event,
                 new TypeSafeCaller<>(listenerType, eventType, listenerCall));
     }
@@ -52,7 +52,7 @@ public class DispatchingController implements EventController {
         private final Listener mListener;
         private final Predicate<Event> mPredicate;
 
-        private PredicatedListener(Listener listener, Predicate<Event> predicate) {
+        PredicatedListener(Listener listener, Predicate<Event> predicate) {
             mListener = listener;
             mPredicate = predicate;
         }
@@ -90,7 +90,7 @@ public class DispatchingController implements EventController {
                 E eventOfType = mEventType.cast(event);
 
                 if (listener instanceof PredicatedListener) {
-
+                    ((PredicatedListener)listener).call(eventOfType, mListenerType, mListenerCall);
                 } else {
                     L listenerOfType = mListenerType.cast(listener);
                     mListenerCall.accept(listenerOfType, eventOfType);
