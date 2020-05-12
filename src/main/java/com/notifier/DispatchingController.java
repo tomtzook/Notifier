@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 
 public class DispatchingController implements EventController {
 
@@ -27,8 +28,13 @@ public class DispatchingController implements EventController {
     }
 
     @Override
+    public void registerListener(Listener listener, Predicate<Event> predicate) {
+        mListeners.add(new PredicatedListener(listener, predicate));
+    }
+
+    @Override
     public void unregisterListener(Listener listener) {
-        mListeners.remove(listener);
+        mListeners.removeIf((l)->l.equals(listener));
     }
 
     @Override
@@ -39,6 +45,29 @@ public class DispatchingController implements EventController {
                 listenerType::isInstance,
                 event,
                 new TypeSafeCaller<>(listenerType, eventType, listenerCall));
+    }
+
+    private static class PredicatedListener implements Listener {
+
+        private final Listener mListener;
+        private final Predicate<Event> mPredicate;
+
+        private PredicatedListener(Listener listener, Predicate<Event> predicate) {
+            mListener = listener;
+            mPredicate = predicate;
+        }
+
+        public <L extends Listener, E extends Event> void call(E event, Class<L> listenerType,
+                                                               BiConsumer<L, E> listenerCall) {
+            if (listenerType.isInstance(mListener) && mPredicate.test(event)) {
+                listenerCall.accept(listenerType.cast(mListener), event);
+            }
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return mListener.equals(obj);
+        }
     }
 
     private static class TypeSafeCaller<L extends Listener, E extends Event> implements BiConsumer<Listener, Event> {
@@ -56,11 +85,16 @@ public class DispatchingController implements EventController {
 
         @Override
         public void accept(Listener listener, Event event) {
-            if (mListenerType.isInstance(listener) && mEventType.isInstance(event))  {
-                L listenerOfType = mListenerType.cast(listener);
+            if ((mListenerType.isInstance(listener) || listener instanceof PredicatedListener) &&
+                    mEventType.isInstance(event))  {
                 E eventOfType = mEventType.cast(event);
 
-                mListenerCall.accept(listenerOfType, eventOfType);
+                if (listener instanceof PredicatedListener) {
+
+                } else {
+                    L listenerOfType = mListenerType.cast(listener);
+                    mListenerCall.accept(listenerOfType, eventOfType);
+                }
             }
         }
     }
