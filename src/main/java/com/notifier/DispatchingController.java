@@ -47,7 +47,7 @@ public class DispatchingController implements EventController {
                 new TypeSafeCaller<>(listenerType, eventType, listenerCall));
     }
 
-    private static class PredicatedListener implements Listener {
+    static class PredicatedListener implements Listener {
 
         private final Listener mListener;
         private final Predicate<Event> mPredicate;

@@ -49,6 +49,20 @@ public class DispatchingControllerTest {
     }
 
     @Test
+    public void unregister_forPredicatedListener_removesListener() throws Exception {
+        final DispatchingController.PredicatedListener LISTENER = mock(DispatchingController.PredicatedListener.class);
+
+        Collection<Listener> listeners = new ArrayList<>();
+        listeners.add(LISTENER);
+        EventDispatcher eventDispatcher = mock(EventDispatcher.class);
+
+        DispatchingController dispatchingController = new DispatchingController(eventDispatcher, listeners);
+        dispatchingController.unregisterListener(LISTENER);
+
+        assertThat(listeners, not(contains(LISTENER)));
+    }
+
+    @Test
     public void fire_eventForRegisteredListeners_passesAllListenersToDispatcher() throws Exception {
         final Listener[] LISTENERS = {
                 mock(Listener.class),
