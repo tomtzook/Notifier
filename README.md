@@ -62,6 +62,19 @@ Registering for events is done via `EventController.registerListener`:
 eventController.registerListener(new LoggingCharacterStateListener());
 ```
 
+It is also possible to register a listener with a call filter:
+```Java
+Predicate<Event> filter = ...;
+eventController.registerListener(new LoggingCharacterStateListener(), filter);
+```
+Where `filter.test(event)` should return `true` for any `event` that should be handled by this listener. 
+Since `Event` is just a general interface, the `filter` would probably need to check the type of event first:
+```Java
+Predicate<Event> filter = (e)-> {
+  return e instanceof CharacterEvent && ((CharacterEvent)e).character.equals(mainCharacter);
+}
+```
+
 #### Firing Events
 
 Firing events is done with `EventController.fire`:
@@ -78,7 +91,7 @@ The following parameters are required:
 - the class type of the listener which should handle the event
 - the callback of the listener which is expected to handle it
 
-It is up to the one firing the event to decide what listener callback is supposed to handle it.
+It is up to the one firing the event to decide what listener callback is supposed to handle it. This will invoked all general listeners of the same the given type. Predicated listener of the same type will be called only if the predicate confirms the call.
 
 A `fire` call can be executed synchronously, asynchronously, be blocking or not, and more. There is no actual specification of the the dispatching is done, and it depends entirely on the implementation. So it is recommended to be aware of the implementation provided.
 
@@ -95,6 +108,6 @@ Releases are deployed to maven cental, so using the library is quite easy.
 For example, adding the __Notifier__ as a dependency to a _Gradle_-based project:
 ```Groovy
 dependencies {
-  implementation group: 'com.github.tomtzook', name: 'notifier', version $version
+  implementation group: 'com.github.tomtzook', name: 'notifier', version: $version
 }
 ``` 
