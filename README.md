@@ -40,13 +40,13 @@ class DeathEvent extends CharacterEvent {
 
 A listener interface should define callback methods which should be invoked to handle the event occurring. This callback method should receive the event which it expects and should handle. An callback method signature should return `void`, throw no exceptions, and receive an instance of the handled event. Following the earlier example, a listener for the death event of a character:
 ```Java
-interface CharacterStateListener implements Listener {
+interface CharacterStateListener extends Listener {
   void onDeath(DeathEvent e);
 }
 ```
 A listener interface may define multiple callback methods, to handle different events. For example, a callback to handle an event of a character changing stance:
 ```Java
-interface CharacterStateListener implements Listener {
+interface CharacterStateListener extends Listener {
   void onDeath(DeathEvent e);
   void onStanceChange(StanceChangeEvent e);
 }
