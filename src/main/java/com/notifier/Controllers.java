@@ -112,8 +112,9 @@ public class Controllers {
      * <p>
      *     Creates a new {@link EventController} which dispatches all events in a separate thread, by order.
      *     The thread is used in provided by <code>executorService</code> by submitting a task via
-     *     {@link ExecutorService#submit(Runnable)}. All the events will be dispatched one by one in the task
-     *     provided to the executor.A lot of listeners or events might
+     *     {@link Executor#execute(Runnable)}, which should execute the runnable without stop, which is why this executor
+     *     should not execute the runnable synchronously, since it will block the current thread.
+     *     All the events will be dispatched one by one in the task provided to the executor.A lot of listeners or events might
      *     cause contention and delay in dispatching. It is recommended to use this implementation only for
      *     small situations.
      * </p>
@@ -123,11 +124,11 @@ public class Controllers {
      *     might be occupied and dispatching events will not be able to execute.
      * </p>
      *
-     * @param executorService {@link ExecutorService} to use for running the dispatching task.
+     * @param executor {@link Executor} to use for running the dispatching task.
      *
      * @return event controller
      */
-    public static EventController newSingleThreadController(ExecutorService executorService) {
-        return new DispatchingController(new QueuedDispatcher(executorService));
+    public static EventController newSingleThreadController(Executor executor) {
+        return new DispatchingController(new QueuedDispatcher(executor));
     }
 }

@@ -5,7 +5,7 @@ import com.notifier.Listener;
 
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
@@ -23,9 +23,9 @@ public class QueuedDispatcher implements EventDispatcher {
         runThread.start();
     }
 
-    public QueuedDispatcher(ExecutorService executorService) {
+    public QueuedDispatcher(Executor executor) {
         mEvents = new LinkedBlockingQueue<>();
-        executorService.submit(new Task(mEvents));
+        executor.execute(new Task(mEvents));
     }
 
     @Override
