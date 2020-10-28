@@ -44,7 +44,7 @@ public class EventDispatcherTest {
         sExecutorService.shutdownNow();
     }
 
-    @ParameterizedTest(name = "{2}")
+    @ParameterizedTest(name = "{2}.allListeners")
     @MethodSource("implementationArguments")
     public void dispatch_forListenersWhichMatchesAll_dispatchesAll(EventDispatcher eventDispatcher, Class<EventDispatcher> dispatcherClass, String testName) throws Exception {
         final Listener[] LISTENERS = {
@@ -72,7 +72,7 @@ public class EventDispatcherTest {
         assertThat(invokedListeners, containsInAnyOrder(LISTENERS));
     }
 
-    @ParameterizedTest(name = "{2}")
+    @ParameterizedTest(name = "{2}.perdicatedListeners")
     @MethodSource("implementationArguments")
     public void dispatch_forListenersLimitedByPredicate_dispatchesThoseWhoPassPredicate(EventDispatcher eventDispatcher, Class<EventDispatcher> dispatcherClass, String testName) throws Exception {
         final Listener[] CALL = {
@@ -145,7 +145,9 @@ public class EventDispatcherTest {
                 Arguments.of(new ExecutorBasedDispatcher(sExecutorService),
                         ExecutorBasedDispatcher.class, "executorService"),
                 Arguments.of(new BlockingDispatcher(sExecutorService, -1, TimeUnit.MICROSECONDS),
-                        ExecutorBasedDispatcher.class, "executorService-noTimeout")
+                        ExecutorBasedDispatcher.class, "executorService-noTimeout"),
+                Arguments.of(QueuedDispatcher.withBlockingHandler(sExecutorService),
+                        QueuedDispatcher.class, "queueBased-blocking-task")
         );
     }
 }
