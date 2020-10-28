@@ -2,6 +2,7 @@ package com.notifier;
 
 import com.notifier.dispatchers.BlockingDispatcher;
 import com.notifier.dispatchers.ExecutorBasedDispatcher;
+import com.notifier.dispatchers.QueuedDispatcher;
 import com.notifier.dispatchers.SyncrounousDispatcher;
 
 import java.util.concurrent.Executor;
@@ -91,5 +92,42 @@ public class Controllers {
                                                         long maxWaitTime, TimeUnit maxWaitTimeUnit) {
         return new DispatchingController(new BlockingDispatcher(executorService,
                 maxWaitTime, maxWaitTimeUnit));
+    }
+
+    /**
+     * <p>
+     *     Creates a new {@link EventController} which dispatches all events in a separate thread, by order.
+     *     The created thread is a daemon thread and runs all the calls one by one. A lot of listeners or events might
+     *     cause contention and delay in dispatching. It is recommended to use this implementation only for
+     *     small situations.
+     * </p>
+     *
+     * @return event controller
+     */
+    public static EventController newSingleThreadController() {
+        return new DispatchingController(new QueuedDispatcher());
+    }
+
+    /**
+     * <p>
+     *     Creates a new {@link EventController} which dispatches all events in a separate thread, by order.
+     *     The thread is used in provided by <code>executorService</code> by submitting a task via
+     *     {@link ExecutorService#submit(Runnable)}. All the events will be dispatched one by one in the task
+     *     provided to the executor.A lot of listeners or events might
+     *     cause contention and delay in dispatching. It is recommended to use this implementation only for
+     *     small situations.
+     * </p>
+     * <p>
+     *     The exact nature of the thread used depends on the <code>executorService</code> implementation and state.
+     *     This could prove problematic for <code>executorService</code>s which are heavily used as all the threads
+     *     might be occupied and dispatching events will not be able to execute.
+     * </p>
+     *
+     * @param executorService {@link ExecutorService} to use for running the dispatching task.
+     *
+     * @return event controller
+     */
+    public static EventController newSingleThreadController(ExecutorService executorService) {
+        return new DispatchingController(new QueuedDispatcher(executorService));
     }
 }
