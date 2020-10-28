@@ -4,28 +4,59 @@ import com.notifier.Event;
 import com.notifier.Listener;
 
 import java.util.Collection;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 public class QueuedDispatcher implements EventDispatcher {
 
-    private final BlockingQueue<Runnable> mEvents;
+    private final Queue<Runnable> mEvents;
 
-    public QueuedDispatcher() {
-        mEvents = new LinkedBlockingQueue<>();
-
-        Thread runThread = new Thread(new Task(mEvents), toString()+"-handling thread");
-        runThread.setDaemon(true);
-        runThread.start();
+    public QueuedDispatcher(Queue<Runnable> events) {
+        mEvents = events;
     }
 
-    public QueuedDispatcher(Executor executor) {
-        mEvents = new LinkedBlockingQueue<>();
-        executor.execute(new Task(mEvents));
+    public static QueuedDispatcher withBlockingHandler() {
+        BlockingQueue<Runnable> events = new LinkedBlockingQueue<>();
+        QueuedDispatcher dispatcher = new QueuedDispatcher(events);
+
+        Thread runThread = new Thread(new BlockingTask(events), dispatcher.toString()+"-handling thread");
+        runThread.setDaemon(true);
+        runThread.start();
+
+        return dispatcher;
+    }
+
+    public static QueuedDispatcher withBlockingHandler(Executor executor) {
+        BlockingQueue<Runnable> events = new LinkedBlockingQueue<>();
+        executor.execute(new BlockingTask(events));
+
+        return new QueuedDispatcher(events);
+    }
+
+    public static QueuedDispatcher withPeriodicHandler(Consumer<Runnable> taskExecutor, long maxPeriodRunTimeMs) {
+        Queue<Runnable> events = new LinkedList<>();
+        taskExecutor.accept(new PeriodicTask(events, maxPeriodRunTimeMs));
+
+        return new QueuedDispatcher(events);
+    }
+
+    public static QueuedDispatcher withPeriodicHandler(ScheduledExecutorService executorService, long periodMs, long maxPeriodRunTimeMs) {
+        Queue<Runnable> events = new LinkedList<>();
+        executorService.scheduleAtFixedRate(new PeriodicTask(events, maxPeriodRunTimeMs), periodMs, periodMs, TimeUnit.MILLISECONDS);
+
+        return new QueuedDispatcher(events);
+    }
+
+    public static QueuedDispatcher withPeriodicHandler(ScheduledExecutorService executorService, long periodMs) {
+        return withPeriodicHandler(executorService, periodMs, Math.min(periodMs / 2, 50));
     }
 
     @Override
@@ -37,11 +68,11 @@ public class QueuedDispatcher implements EventDispatcher {
         }
     }
 
-    private static class Task implements Runnable {
+    private static class BlockingTask implements Runnable {
 
         private final BlockingQueue<Runnable> mQueue;
 
-        private Task(BlockingQueue<Runnable> queue) {
+        private BlockingTask(BlockingQueue<Runnable> queue) {
             mQueue = queue;
         }
 
@@ -55,6 +86,31 @@ public class QueuedDispatcher implements EventDispatcher {
                     }
                 }
             } catch (InterruptedException e) {
+            }
+        }
+    }
+
+    private static class PeriodicTask implements Runnable {
+
+        private final Queue<Runnable> mQueue;
+        private final long mMaxPeriodRunTimeMs;
+
+        private PeriodicTask(Queue<Runnable> queue, long maxPeriodRunTimeMs) {
+            mQueue = queue;
+            mMaxPeriodRunTimeMs = maxPeriodRunTimeMs;
+        }
+
+        @Override
+        public void run() {
+            long start = System.currentTimeMillis();
+
+            while (System.currentTimeMillis() - start < mMaxPeriodRunTimeMs) {
+                Runnable runnable = mQueue.poll();
+                if (runnable == null) {
+                    break;
+                }
+
+                runnable.run();
             }
         }
     }

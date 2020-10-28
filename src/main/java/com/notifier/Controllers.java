@@ -7,8 +7,10 @@ import com.notifier.dispatchers.SyncrounousDispatcher;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 public class Controllers {
 
@@ -105,7 +107,7 @@ public class Controllers {
      * @return event controller
      */
     public static EventController newSingleThreadController() {
-        return new DispatchingController(new QueuedDispatcher());
+        return new DispatchingController(QueuedDispatcher.withBlockingHandler());
     }
 
     /**
@@ -129,6 +131,64 @@ public class Controllers {
      * @return event controller
      */
     public static EventController newSingleThreadController(Executor executor) {
-        return new DispatchingController(new QueuedDispatcher(executor));
+        return new DispatchingController(QueuedDispatcher.withBlockingHandler(executor));
+    }
+
+    /**
+     * <p>
+     *     Creates a new {@link EventController} which dispatches all events in a separate thread, by order.
+     *     The thread is used in provided by <code>executorService</code> by submitting a task via
+     *     {@link ScheduledExecutorService#scheduleAtFixedRate(Runnable, long, long, TimeUnit)}, which should execute the runnable periodically.
+     *     All the events will be dispatched one by one in the task provided to the executor. A lot of listeners or events might
+     *     cause contention and delay in dispatching. It is recommended to use this implementation only for small situations.
+     * </p>
+     * <p>
+     *     Because of the periodically nature of the dispatching, a delay between the event and the listener handling is expected.
+     * </p>
+     * <p>
+     *     Since {@link ScheduledExecutorService} decided on how to allocates threads, it is entirely possible that
+     *     the dispatching task will not run during the expected time due to the all the threads being in use.
+     * </p>
+     * <p>
+     *     During execution, the dispatching task will attempt to dispatching all new events until no more events
+     *     are available or a given amount of time has elapsed. If there are more events to dispatch, but the max time
+     *     as elapsed, those events will only be dispatched during the next run.
+     *
+     *     This max run time is the product of <code>min(periodMs / 2, 50)</code>.
+     * </p>
+     *
+     * @param executorService {@link ScheduledExecutorService} for running the dispatching task
+     * @param periodMs period of checking and dispatching new events.
+     *
+     * @return event controller
+     */
+    public static EventController newPeriodicDispatchingController(ScheduledExecutorService executorService, long periodMs) {
+        return new DispatchingController(QueuedDispatcher.withPeriodicHandler(executorService, periodMs));
+    }
+
+    /**
+     * <p>
+     *     Creates a new {@link EventController} which dispatches all events by order. All the events will be
+     *     dispatched one by one in the task provided to the executor. A lot of listeners or events might
+     *     cause contention and delay in dispatching. It is recommended to use this implementation only for small situations.
+     * </p>
+     * <p>
+     *     The period of execution and which thread is used depends entirely on the executor and thus
+     *     remains in user hands.
+     * </p>
+     * <p>
+     *     During execution, the dispatching task will attempt to dispatching all new events until no more events
+     *     are available or a given amount of time has elapsed. If there are more events to dispatch, but the max time
+     *     as elapsed, those events will only be dispatched during the next run.
+     * </p>
+     *
+     * @param taskExecutor a {@link Consumer} which should cause a periodic execution of the given task.
+     *                     The task will only be given once.
+     * @param maxPeriodRunTimeMs max amount of time the dispatching task should continue dispatching new events if available.
+     *
+     * @return event controller
+     */
+    public static EventController newPeriodicDispatchingController(Consumer<Runnable> taskExecutor, long maxPeriodRunTimeMs) {
+        return new DispatchingController(QueuedDispatcher.withPeriodicHandler(taskExecutor, maxPeriodRunTimeMs));
     }
 }
