@@ -2,6 +2,7 @@ package com.notifier;
 
 import com.notifier.dispatchers.EventDispatcher;
 
+import java.lang.ref.WeakReference;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -23,22 +24,34 @@ public class DispatchingController implements EventController {
     }
 
     @Override
-    public void registerListener(Listener listener) {
+    public RegisteredListener registerListener(Listener listener) {
         mListeners.add(listener);
+
+        return new RegisteredListenerImpl(this, listener);
     }
 
     @Override
-    public void registerListener(Listener listener, Predicate<Event> predicate) {
-        mListeners.add(new PredicatedListener(listener, predicate));
+    public RegisteredListener registerListener(Listener listener, Predicate<Event> predicate) {
+        Listener actual = new PredicatedListener(listener, predicate);
+        mListeners.add(actual);
+
+        return new RegisteredListenerImpl(this, actual);
     }
 
     @Override
-    public void unregisterListener(Listener listener) {
-        mListeners.removeIf((l)->l.equals(listener));
+    public <E extends Event> RegisteredListener registerListenerForEvent(Listener listener, Class<E> eventType) {
+        return registerListener(listener, new SpecificEventPredicate<>(eventType));
     }
 
     @Override
-    public <E extends Event, L extends Listener> void fire(E event, Class<E> eventType, Class<L> listenerType,
+    public <E extends Event> RegisteredListener registerListenerForEvent(Listener listener, Class<E> eventType, Predicate<? super E> predicate) {
+        return registerListener(listener, new SpecificEventPredicate<>(eventType, predicate));
+    }
+
+    @Override
+    public <E extends Event, L extends Listener> void fire(E event,
+                                                           Class<E> eventType,
+                                                           Class<L> listenerType,
                                                            BiConsumer<L, E> listenerCall) {
         mEventDispatcher.dispatch(
                 Collections.unmodifiableCollection(mListeners),
@@ -49,7 +62,7 @@ public class DispatchingController implements EventController {
 
     static class PredicatedListener implements Listener {
 
-        private final Listener mListener;
+        final Listener mListener;
         private final Predicate<Event> mPredicate;
 
         PredicatedListener(Listener listener, Predicate<Event> predicate) {
@@ -62,11 +75,6 @@ public class DispatchingController implements EventController {
             if (listenerType.isInstance(mListener) && mPredicate.test(event)) {
                 listenerCall.accept(listenerType.cast(mListener), event);
             }
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            return mListener.equals(obj);
         }
     }
 
@@ -96,6 +104,56 @@ public class DispatchingController implements EventController {
                     mListenerCall.accept(listenerOfType, eventOfType);
                 }
             }
+        }
+    }
+
+    private static class RegisteredListenerImpl implements RegisteredListener {
+
+        private final WeakReference<DispatchingController> mController;
+        private final Listener mListener;
+
+        private RegisteredListenerImpl(DispatchingController controller, Listener baseListener) {
+            mController = new WeakReference<>(controller);
+            mListener = baseListener;
+        }
+
+        @Override
+        public void unregister() {
+            DispatchingController controller = mController.get();
+            if (controller == null) {
+                return;
+            }
+
+            controller.mListeners.remove(mListener);
+        }
+    }
+
+    private static class SpecificEventPredicate<E extends Event> implements Predicate<Event> {
+
+        private final Class<E> mEventType;
+        private final Predicate<? super E> mPredicate;
+
+        private SpecificEventPredicate(Class<E> eventType, Predicate<? super E> predicate) {
+            mEventType = eventType;
+            mPredicate = predicate;
+        }
+
+        private SpecificEventPredicate(Class<E> eventType) {
+            this(eventType, null);
+        }
+
+        @Override
+        public boolean test(Event event) {
+            if (!mEventType.isInstance(event)) {
+                return false;
+            }
+
+            if (mPredicate == null) {
+                return true;
+            }
+
+            E actualEvent = mEventType.cast(event);
+            return mPredicate.test(actualEvent);
         }
     }
 }

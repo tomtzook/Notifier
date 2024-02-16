@@ -1,6 +1,9 @@
 package com.notifier;
 
 import com.notifier.dispatchers.EventDispatcher;
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -42,27 +45,29 @@ public class DispatchingControllerTest {
         final Listener LISTENER = mock(Listener.class);
 
         Collection<Listener> listeners = new ArrayList<>();
-        listeners.add(LISTENER);
         EventDispatcher eventDispatcher = mock(EventDispatcher.class);
 
         DispatchingController dispatchingController = new DispatchingController(eventDispatcher, listeners);
-        dispatchingController.unregisterListener(LISTENER);
+        RegisteredListener registeredListener = dispatchingController.registerListener(LISTENER);
 
+        assertThat(listeners, contains(LISTENER));
+        registeredListener.unregister();
         assertThat(listeners, not(contains(LISTENER)));
     }
 
     @Test
     public void unregister_forPredicatedListener_removesListener() throws Exception {
-        final DispatchingController.PredicatedListener LISTENER = mock(DispatchingController.PredicatedListener.class);
+        final Listener LISTENER = mock(Listener.class);
 
         Collection<Listener> listeners = new ArrayList<>();
-        listeners.add(LISTENER);
         EventDispatcher eventDispatcher = mock(EventDispatcher.class);
 
         DispatchingController dispatchingController = new DispatchingController(eventDispatcher, listeners);
-        dispatchingController.unregisterListener(LISTENER);
+        RegisteredListener registeredListener = dispatchingController.registerListener(LISTENER, (e)->true);
 
-        assertThat(listeners, not(contains(LISTENER)));
+        assertThat(listeners, contains(new PredicatedListenerMatcher(LISTENER)));
+        registeredListener.unregister();
+        assertThat(listeners, not(contains(new PredicatedListenerMatcher(LISTENER))));
     }
 
     @Test
@@ -150,6 +155,46 @@ public class DispatchingControllerTest {
                     listenerCall.accept(listener, event);
                 }
             }
+        }
+    }
+
+    private static class PredicatedListenerMatcher extends BaseMatcher<Listener> {
+
+        private final Listener mWanted;
+
+        private PredicatedListenerMatcher(Listener wanted) {
+            mWanted = wanted;
+        }
+
+        @Override
+        public boolean matches(Object actual) {
+            if (!(actual instanceof DispatchingController.PredicatedListener)) {
+                return false;
+            }
+
+            DispatchingController.PredicatedListener predicatedListener = (DispatchingController.PredicatedListener) actual;
+            return mWanted.equals(predicatedListener.mListener);
+        }
+
+        @Override
+        public void describeMismatch(Object actual, Description mismatchDescription) {
+            if (actual instanceof DispatchingController.PredicatedListener) {
+                DispatchingController.PredicatedListener predicatedListener = (DispatchingController.PredicatedListener) actual;
+
+                mismatchDescription.appendText("actual is PredicatedListener wrapping ");
+                mismatchDescription.appendValue(predicatedListener.mListener);
+                mismatchDescription.appendText(" but wanted is ");
+                mismatchDescription.appendValue(mWanted);
+            } else {
+                mismatchDescription.appendValue(actual);
+                mismatchDescription.appendText(" is not PredicatedListener");
+            }
+        }
+
+        @Override
+        public void describeTo(Description description) {
+            description.appendText("PredicatedListener wrapping ");
+            description.appendValue(mWanted);
         }
     }
 }
