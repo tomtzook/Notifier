@@ -39,6 +39,16 @@ public class DispatchingController implements EventController {
     }
 
     @Override
+    public <E extends Event> RegisteredListener registerListenerForEvent(Listener listener, Class<E> eventType) {
+        return registerListener(listener, new SpecificEventPredicate<>(eventType));
+    }
+
+    @Override
+    public <E extends Event> RegisteredListener registerListenerForEvent(Listener listener, Class<E> eventType, Predicate<? super E> predicate) {
+        return registerListener(listener, new SpecificEventPredicate<>(eventType, predicate));
+    }
+
+    @Override
     public <E extends Event, L extends Listener> void fire(E event,
                                                            Class<E> eventType,
                                                            Class<L> listenerType,
@@ -115,6 +125,35 @@ public class DispatchingController implements EventController {
             }
 
             controller.mListeners.remove(mListener);
+        }
+    }
+
+    private static class SpecificEventPredicate<E extends Event> implements Predicate<Event> {
+
+        private final Class<E> mEventType;
+        private final Predicate<? super E> mPredicate;
+
+        private SpecificEventPredicate(Class<E> eventType, Predicate<? super E> predicate) {
+            mEventType = eventType;
+            mPredicate = predicate;
+        }
+
+        private SpecificEventPredicate(Class<E> eventType) {
+            this(eventType, null);
+        }
+
+        @Override
+        public boolean test(Event event) {
+            if (!mEventType.isInstance(event)) {
+                return false;
+            }
+
+            if (mPredicate == null) {
+                return true;
+            }
+
+            E actualEvent = mEventType.cast(event);
+            return mPredicate.test(actualEvent);
         }
     }
 }
